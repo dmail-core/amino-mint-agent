@@ -1,0 +1,16 @@
+
+debug: true
+
+log_dir_file_name: "./dmail-mint-agent"
+
+icp_config:
+  identity_pem_path: "./identity.pem" # which is pem of controller.
+  icp_domain: "http://127.0.0.1:8000/"
+  agent_canister_id: "rrkah-fqaaa-aaaaa-aaaaq-cai"
+
+database_url: "mysql://root:123456@localhost:3306/dmail_test?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8"
+
+
+  
+
+
