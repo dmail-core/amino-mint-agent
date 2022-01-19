@@ -36,7 +36,6 @@ async fn mint_token(nft_vec: Vec<Nft>) {
         .throttle(std::time::Duration::from_millis(500))
         .timeout(std::time::Duration::from_secs(60 * 5))
         .build();
-
     let agent = Agent::builder()
         .with_transport(transport)
         .with_identity(create_identity())
