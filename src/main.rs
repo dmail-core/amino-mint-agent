@@ -58,11 +58,6 @@ async fn mint_token(nft_vec: Vec<Nft>) {
                     val: MetadataVal::TextContent(nft.nft_name.clone().unwrap().clone()),
                 },
                 MetadataKeyVal {
-<<<<<<< HEAD
-                    key: "bind_status".into(),
-                    val: MetadataVal::Nat8Content(0),
-                },
-=======
                     key: "binding".into(),
                     val: MetadataVal::TextContent("false".into()),
                 },
@@ -73,7 +68,6 @@ async fn mint_token(nft_vec: Vec<Nft>) {
                             .into(),
                     ),
                 }
->>>>>>> ver 0.2
             ],
             data: vec![],
         }];
@@ -91,14 +85,8 @@ async fn mint_token(nft_vec: Vec<Nft>) {
             .await;
 
         if response.is_ok() {
-<<<<<<< HEAD
-
             let decode_result = Decode!(response.unwrap().as_slice(), MintReceipt).unwrap();
 
-=======
-            let decode_result = Decode!(response.unwrap().as_slice(), MintReceipt).unwrap();
-
->>>>>>> ver 0.2
             match decode_result {
                 Ok(mint_receipt_part) => {
                     info!(
@@ -107,11 +95,7 @@ async fn mint_token(nft_vec: Vec<Nft>) {
                         mint_receipt_part
                     );
 
-<<<<<<< HEAD
-                    //execute sql to update database status of nft to 1. 
-=======
                     //execute sql to update database status of nft to 1.
->>>>>>> ver 0.2
                     mint_nft_success_and_update(nft.clone()).await;
                 }
                 Err(api_error) => {
