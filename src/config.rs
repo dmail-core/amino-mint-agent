@@ -26,7 +26,7 @@ impl AppConfig {
             .unwrap()
             .try_deserialize::<AppConfig>()
             .unwrap();
-        dbg!(&app_config);
+        // dbg!(&app_config);
         app_config
     }
 }
