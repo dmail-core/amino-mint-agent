@@ -1,9 +1,10 @@
 use config::AppConfig;
+use ic_agent::ic_types::principal;
 use ic_agent::{
     agent::http_transport::ReqwestHttpReplicaV2Transport, ic_types::Principal,
     identity::Secp256k1Identity, Agent,
 };
-use ic_cdk::export::candid::{Decode, Encode};
+use ic_cdk::export::candid::{Decode, Encode, Nat};
 use log::{error, info};
 use once_cell::sync::Lazy;
 use sqlx::mysql::{MySql, MySqlPoolOptions};
@@ -28,7 +29,7 @@ fn create_identity() -> Secp256k1Identity {
         .expect("Could not read the key pair.")
 }
 
-async fn mint_token(nft_vec: Vec<Nft>) {
+async fn mint_token(nft_ser: String, nft: Nft) {
     let transport = ReqwestHttpReplicaV2Transport::create(&CFG.icp_config.icp_domain).unwrap();
 
     let waiter = garcon::Delay::builder()
@@ -47,108 +48,98 @@ async fn mint_token(nft_vec: Vec<Nft>) {
 
     let canister_id = Principal::from_text(&CFG.icp_config.agent_canister_id).unwrap();
 
-    // mutil mint token
-    for nft in nft_vec {
-        let metadata_desc: MetadataDesc = vec![MetadataPart {
-            purpose: MetadataPurpose::Rendered,
-            key_val_data: vec![
-                MetadataKeyVal {
-                    key: "alias".into(),
-                    val: MetadataVal::TextContent(nft.nft_name.clone()),
-                },
-                MetadataKeyVal {
-                    key: "binding".into(),
-                    val: MetadataVal::TextContent("false".into()),
-                },
-                MetadataKeyVal {
-                    key: "location".into(),
-                    val: MetadataVal::TextContent(
-                        "https://storageapi.fleek.co/fleek-team-bucket/logos/400_400_ETH.png"
-                            .into(),
-                    ),
-                },
-            ],
-            data: vec![],
-        }];
-        
-        let response = agent
-            .update(&canister_id, "mintDip721")
-            .with_arg(&Encode!(&Principal::from_text(nft.p_id).unwrap(), &metadata_desc).unwrap())
-            .call_and_wait(waiter.clone())
-            .await;
-        if response.is_ok() {
-            let decode_result = Decode!(response.unwrap().as_slice(), MintReceipt).unwrap();
+    let metadata_desc: MetadataDesc = vec![MetadataPart {
+        purpose: MetadataPurpose::Rendered,
+        key_val_data: vec![
+            MetadataKeyVal {
+                key: "id".into(),
+                val: MetadataVal::Nat64Content(nft.id.parse::<u64>().unwrap()),
+            },
+            MetadataKeyVal {
+                key: "nft_content".into(),
+                val: MetadataVal::TextContent(nft_ser.clone()),
+            },
+        ],
+        data: vec![],
+    }];
 
-            match decode_result {
-                Ok(mint_receipt_part) => {
-                    // info!(
-                    //     "mint :{:?}------response:{:?}\n",
-                    //     &nft.nft_name, mint_receipt_part
-                    // );
+    let response = agent
+        .update(&canister_id, "mintDip721")
+        .with_arg(
+            &Encode!(
+                &Principal::from_text(nft.principal_id).unwrap(),
+                &metadata_desc
+            )
+            .unwrap(),
+        )
+        .call_and_wait(waiter.clone())
+        .await;
+    if response.is_ok() {
+        let decode_result = Decode!(response.unwrap().as_slice(), MintReceipt).unwrap();
 
-                    println!(
-                        "{}",
-                        Response {
-                            result: "success".to_string(),
-                            message: format!("mint :{}", &nft.nft_name),
-                            token_id: Some(mint_receipt_part.token_id)
-                        }
-                    )
-
-                    //execute sql to update database status of nft to 1.
-                    // mint_nft_success_and_update(nft.clone()).await;
-                }
-                Err(api_error) => {
-                    println!(
-                        "{}",
-                        Response {
-                            result: "fault".to_string(),
-                            message: format!("mint :{}---Error:{:?}", &nft.nft_name,api_error),
-                            token_id: None
-                        }
-                    )
-                }
+        match decode_result {
+            Ok(mint_receipt_part) => {
+                println!(
+                    "{}",
+                    Response {
+                        result: "success".to_string(),
+                        message: format!("mint :{}", &nft.id),
+                        token_id: Some(mint_receipt_part.id.try_into().unwrap())
+                    }
+                )
             }
-        } else {
-            dbg!(&111);
-            let error = response.unwrap_err();
-            println!("error response:{:?}", error);
+            Err(api_error) => {
+                println!(
+                    "{}",
+                    Response {
+                        result: "fault".to_string(),
+                        message: format!("mint :{}---Error:{:?}", &nft.id, api_error),
+                        token_id: None
+                    }
+                )
+            }
         }
+    } else {
+        let error = response.unwrap_err();
+        println!("error response:{:?}", error);
     }
 }
 
 use std::env;
 #[inline(always)]
-fn get_args() -> Vec<Nft> {
+fn get_args() -> (String, Nft) {
     let args: Vec<String> = env::args().collect();
 
-    let alias = args
+    let nft = args
         .get(1)
-        .unwrap_or_else(|| panic!("alias must not be empty"));
-    let principal_id = args
-        .get(2)
-        .unwrap_or_else(|| panic!("principal_id must not be empty"));
+        .unwrap_or_else(|| panic!("arg1 must not be empty"));
 
-    vec![Nft {
-        p_id: principal_id.into(),
-        nft_name: alias.into(),
-    }]
+    (
+        nft.clone(),
+        serde_json::from_str(nft).expect("cid list not fount"),
+    )
 }
 
-//sqlx
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Deserialize)]
 pub struct Nft {
-    p_id: String,
-    nft_name: String,
+    principal_id: String,
+    // url: String,
+    id: String,
+    // attributes: Vec<Attribute>,
 }
 
-use serde::Serialize;
+// #[derive(Deserialize)]
+// pub struct Attribute {
+//     trait_type: String,
+//     value: String,
+// }
+
+use serde::{Deserialize, Serialize};
 #[derive(Clone, Serialize, Debug)]
 pub struct Response {
     result: String,
     message: String,
     token_id: Option<u64>,
-    
 }
 
 impl std::fmt::Display for Response {
@@ -156,7 +147,7 @@ impl std::fmt::Display for Response {
         if self.token_id.is_none() {
             write!(
                 f,
-r#"{{ 
+                r#"{{ 
     "result":"{}", 
     "message":"{}"
 }}"#,
@@ -165,39 +156,18 @@ r#"{{
         } else {
             write!(
                 f,
-r#"{{ 
+                r#"{{ 
     "result":"{}", 
     "message":"{}",
     "token_id":"{:?}"
 }}"#,
-                self.result, self.message, self.token_id.unwrap()
+                self.result,
+                self.message,
+                self.token_id.unwrap()
             )
         }
     }
 }
-
-// pub async fn todo_nft() -> Vec<Nft> {
-//     let row = sqlx::query_as::<MySql, Nft>("select * from `nft` where `status` = 0")
-//         .fetch_all(&*DB)
-//         .await
-//         .unwrap();
-//     // dbg!(&row);
-//     row
-// }
-
-// pub async fn mint_nft_success_and_update(nft: Nft) {
-//     let sql = "UPDATE nft SET `status` = 1 WHERE `nft_name` = ?";
-//     let count = sqlx::query::<MySql>(sql)
-//         .bind(&nft.nft_name)
-//         .execute(&*DB)
-//         .await
-//         .unwrap();
-//     info!(
-//         "update {:?} status = 1------result :{:?}\n",
-//         nft.nft_name.unwrap(),
-//         count
-//     );
-// }
 
 mod config;
 mod logger;
@@ -211,11 +181,9 @@ async fn main() {
     // info!("*********************************************start********************************************************\n");
 
     //query nft
-    let row = get_args();
-    // dbg!(&row);
-    //mint token
-    //update status
-    mint_token(row).await;
+    let (ser_nft, nft) = get_args();
+    // println!("1111111111111111111111{:?}", nft);
+    mint_token(ser_nft, nft).await;
 
     // info!("*********************************************end**********************************************************\n");
 }

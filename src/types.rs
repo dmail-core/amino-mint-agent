@@ -13,12 +13,11 @@ pub enum ApiError {
     AliasHasBeenTaken,
 }
 
-#[derive(CandidType, Deserialize,Debug)]
+#[derive(CandidType, Deserialize, Debug)]
 pub struct MintReceiptPart {
     pub token_id: u64,
-    pub id: Nat,
+    pub id: u128,
 }
-
 
 pub type MetadataDesc = Vec<MetadataPart>;
 
@@ -28,7 +27,6 @@ pub struct MetadataPart {
     pub key_val_data: Vec<MetadataKeyVal>,
     pub data: Vec<u8>,
 }
-
 
 #[derive(CandidType, Clone, Deserialize, Serialize)]
 pub enum MetadataPurpose {
@@ -41,7 +39,6 @@ pub struct MetadataKeyVal {
     pub key: String,
     pub val: MetadataVal,
 }
-
 
 #[derive(CandidType, Clone, Deserialize, PartialEq)]
 pub enum MetadataVal {
