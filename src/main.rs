@@ -147,8 +147,8 @@ impl std::fmt::Display for Response {
         if self.token_id.is_none() {
             write!(
                 f,
-                r#"{{ 
-    "result":"{}", 
+                r#"{{
+    "result":"{}",
     "message":"{}"
 }}"#,
                 self.result, self.message
@@ -156,8 +156,8 @@ impl std::fmt::Display for Response {
         } else {
             write!(
                 f,
-                r#"{{ 
-    "result":"{}", 
+                r#"{{
+    "result":"{}",
     "message":"{}",
     "token_id":"{:?}"
 }}"#,
